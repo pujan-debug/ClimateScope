@@ -57,3 +57,4 @@ Thumbs.db
 # Jupyter Notebook Output
 # -------------------------------
 *.ipynb_convert/
+EDA/
