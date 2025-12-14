@@ -4,22 +4,20 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 
-# =========================================================
-# PAGE CONFIG
-# =========================================================
+
 st.set_page_config(
     page_title="ClimateScope Dashboard",
     layout="wide"
 )
 
-# =========================================================
+
 # DATA LOADING & CLEANING
-# =========================================================
+
 @st.cache_data
 def load_data():
     df = pd.read_csv("data/raw/cleaned_weather_data.csv")
 
-    # Rename for clarity
+   
     df.rename(columns={
         "temp_c": "temperature_celsius",
         "wind_kph": "wind_kph",
@@ -44,9 +42,9 @@ df["last_updated"] = pd.to_datetime(
 df = df.dropna(subset=["last_updated"])
 
 
-# =========================================================
+
 # SIDEBAR – NAVIGATION
-# =========================================================
+
 st.sidebar.title("🌍 ClimateScope")
 page = st.sidebar.radio(
     "Navigation",
@@ -59,9 +57,9 @@ page = st.sidebar.radio(
     ]
 )
 
-# =========================================================
+
 # SIDEBAR – GLOBAL FILTERS
-# =========================================================
+
 st.sidebar.header("Global Filters")
 
 # Country filter
@@ -72,7 +70,7 @@ selected_countries = st.sidebar.multiselect(
     default=countries[:5]
 )
 
-# --- DATE FILTER (SAFE VERSION) ---
+# --- DATE FILTER  ---
 min_date = df["last_updated"].min().date()
 max_date = df["last_updated"].max().date()
 
@@ -103,7 +101,7 @@ metric = st.sidebar.selectbox(
 # Time aggregation
 aggregation = st.sidebar.selectbox(
     "Time Aggregation",
-    ["Daily", "Monthly", "Seasonal"]
+    ["Monthly", "Seasonal"]
 )
 
 # Normalization
@@ -115,9 +113,9 @@ threshold = st.sidebar.number_input(
     value=35.0
 )
 
-# =========================================================
+
 # DATA FILTERING
-# =========================================================
+
 filtered_df = df[
     (df["country"].isin(selected_countries)) &
     (df["last_updated"] >= start_date) &
@@ -125,32 +123,68 @@ filtered_df = df[
 
 ]
 
-# =========================================================
-# AGGREGATION LOGIC
-# =========================================================
+filtered_df["last_updated"] = pd.to_datetime(filtered_df["last_updated"])
 if aggregation == "Monthly":
-    filtered_df["month"] = filtered_df["last_updated"].dt.to_period("M").astype(str)
-    agg_df = filtered_df.groupby(["country", "month"])[metric].mean().reset_index()
-    x_axis = "month"
 
-elif aggregation == "Seasonal":
-    filtered_df["season"] = filtered_df["last_updated"].dt.month % 12 // 3 + 1
-    agg_df = filtered_df.groupby(["country", "season"])[metric].mean().reset_index()
-    x_axis = "season"
+    agg_df = (
+        filtered_df
+        .set_index("last_updated")
+        .groupby("country")[metric]
+        .resample("MS")   # Month Start
+        .mean()
+        .reset_index()
+    )
 
-else:
-    agg_df = filtered_df.copy()
     x_axis = "last_updated"
 
+
+elif aggregation == "Seasonal":
+
+    filtered_df["year"] = filtered_df["last_updated"].dt.year
+    filtered_df["season"] = filtered_df["last_updated"].dt.month.map({
+        12: "Winter", 1: "Winter", 2: "Winter",
+        3: "Spring", 4: "Spring", 5: "Spring",
+        6: "Summer", 7: "Summer", 8: "Summer",
+        9: "Autumn", 10: "Autumn", 11: "Autumn"
+    })
+
+    agg_df = (
+        filtered_df
+        .groupby(["country", "year", "season"])[metric]
+        .mean()
+        .reset_index()
+    )
+
+    # Create sortable seasonal timeline
+    agg_df["season_order"] = agg_df["season"].map(
+        {"Winter": 1, "Spring": 2, "Summer": 3, "Autumn": 4}
+    )
+
+    agg_df["season_time"] = (
+        agg_df["year"].astype(str) + "-" + agg_df["season"]
+    )
+
+    x_axis = "season_time"
+
+
+else:  # Daily (cleaned)
+
+    agg_df = (
+        filtered_df
+        .groupby(["country", "last_updated"])[metric]
+        .mean()
+        .reset_index()
+    )
+
+    x_axis = "last_updated"
 # Normalization
 if normalize:
     agg_df[metric] = (
         agg_df[metric] - agg_df[metric].mean()
     ) / agg_df[metric].std()
 
-# =========================================================
 # EXECUTIVE DASHBOARD
-# =========================================================
+
 if page == "Executive Dashboard":
 
     st.title("📊 Executive Climate Overview")
@@ -179,18 +213,27 @@ if page == "Executive Dashboard":
 
     st.subheader("📈 Climate Trend Snapshot")
 
-    fig_line = px.line(
-        agg_df,
-        x=x_axis,
-        y=metric,
-        color="country",
-        title="Metric Trend"
-    )
-    st.plotly_chart(fig_line, use_container_width=True)
+    fig_bar = px.bar(
+    agg_df,
+    x=x_axis,
+    y=metric,
+    color="country",
+    barmode="group",
+    title=f"{metric} Trend by Country"
+)
 
-# =========================================================
+    fig_bar.update_layout(
+    xaxis_title="Time",
+    yaxis_title=metric.replace("_", " ").title(),
+    legend_title="Country"
+)
+
+    st.plotly_chart(fig_bar, use_container_width=True)
+
+
+
 # STATISTICAL ANALYSIS
-# =========================================================
+
 elif page == "Statistical Analysis":
 
     st.title("📉 Statistical Analysis")
@@ -216,9 +259,9 @@ elif page == "Statistical Analysis":
     st.subheader("Descriptive Statistics")
     st.dataframe(filtered_df.describe())
 
-# =========================================================
+
 # CLIMATE TRENDS
-# =========================================================
+
 elif page == "Climate Trends":
 
     st.title("📈 Climate Trends Analysis")
@@ -249,9 +292,9 @@ elif page == "Climate Trends":
     )
     st.plotly_chart(fig_box, use_container_width=True)
 
-# =========================================================
+
 # EXTREME EVENTS
-# =========================================================
+
 elif page == "Extreme Events":
 
     st.title("🔥 Extreme Events Analysis")
@@ -272,9 +315,8 @@ elif page == "Extreme Events":
     fig_freq = px.bar(freq_df, x="month", y="count")
     st.plotly_chart(fig_freq, use_container_width=True)
 
-# =========================================================
 # HELP SECTION
-# =========================================================
+
 else:
 
     st.title("ℹ️ Help & User Guide")
@@ -294,8 +336,8 @@ else:
     - Use Plotly toolbar to export PNG
     """)
 
-# =========================================================
+
 # FOOTER
-# =========================================================
+
 st.markdown("---")
 st.caption("ClimateScope  |  Analysis of current climate data trends and extreme events.")
