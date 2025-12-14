@@ -2,198 +2,300 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-from datetime import datetime
+import plotly.graph_objects as go
 
-# -----------------------------------------------------
+# =========================================================
 # PAGE CONFIG
-# -----------------------------------------------------
+# =========================================================
 st.set_page_config(
-    page_title="Climate Scope – Interactive Dashboard (Milestone 3)",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="ClimateScope Dashboard",
+    layout="wide"
 )
 
-st.title("Climate Scope – Interactive Dashboard (Milestone 3)")
-
-# -----------------------------------------------------
-# LOAD DATA
-# -----------------------------------------------------
-DATA_PATH = "cleaned_weather_data.csv"     # <<== PUT YOUR DATA FILE HERE
-
+# =========================================================
+# DATA LOADING & CLEANING
+# =========================================================
 @st.cache_data
 def load_data():
-    df = pd.read_csv(DATA_PATH)
+    df = pd.read_csv("data/raw/cleaned_weather_data.csv")
 
-    # Standardize common datetime fields
-    for col in df.columns:
-        if col.lower() in ["date", "datetime", "timestamp", "last_updated"]:
-            df[col] = pd.to_datetime(df[col], errors='coerce')
+    # Rename for clarity
+    df.rename(columns={
+        "temp_c": "temperature_celsius",
+        "wind_kph": "wind_kph",
+        "precip_mm": "precip_mm"
+    }, inplace=True)
 
-    # Detect datetime column
-    datetime_cols = [c for c in df.columns if df[c].dtype == 'datetime64[ns]']
-    date_col = datetime_cols[0] if datetime_cols else None
-
-    # Standardize country name column
-    for col in df.columns:
-        if col.lower() in ["country", "location", "country_name"]:
-            df.rename(columns={col: "country"}, inplace=True)
+    # Date handling
+    df["last_updated"] = pd.to_datetime(df["last_updated"], errors="coerce")
+    df.dropna(subset=["last_updated"], inplace=True)
 
     return df
 
 df = load_data()
 
-if df.empty:
-    st.error("Dataset failed to load. Check your CSV file path.")
-    st.stop()
-
-# -----------------------------------------------------
-# SIDEBAR FILTERS
-# -----------------------------------------------------
-st.sidebar.header("Filters")
-
-# Detect date column
-date_cols = [c for c in df.columns if "date" in c.lower() or df[c].dtype == "datetime64[ns]"]
-date_col = date_cols[0] if date_cols else None
-
-# COUNTRY FILTER
-if "country" in df.columns:
-    countries = sorted(df["country"].dropna().unique())
-    selected_countries = st.sidebar.multiselect("Select Country", countries, default=countries[:3])
-else:
-    selected_countries = None
-
-# PARAMETER FILTER
-numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
-selected_param = st.sidebar.selectbox("Select Parameter", numeric_cols)
-
-# AGGREGATION FILTER
-agg_mode = st.sidebar.selectbox(
-    "Aggregation",
-    ["Raw Data", "Monthly Average", "Yearly Average"]
+df["last_updated"] = pd.to_datetime(
+    df["last_updated"],
+    errors="coerce",
+    infer_datetime_format=True
 )
 
-# DATE RANGE FILTER
-if date_col:
-    min_date = df[date_col].min()
-    max_date = df[date_col].max()
+# Remove invalid dates
+df = df.dropna(subset=["last_updated"])
 
-    start, end = st.sidebar.date_input(
-        "Select Date Range",
-        [min_date, max_date]
-    )
-else:
-    start = end = None
 
-# -----------------------------------------------------
-# APPLY FILTERS
-# -----------------------------------------------------
-df_filtered = df.copy()
-
-# Filter by country
-if selected_countries:
-    df_filtered = df_filtered[df_filtered["country"].isin(selected_countries)]
-
-# Filter by date
-if date_col and start and end:
-    df_filtered = df_filtered[(df_filtered[date_col] >= pd.to_datetime(start)) &
-                              (df_filtered[date_col] <= pd.to_datetime(end))]
-
-# Apply aggregation
-if agg_mode != "Raw Data" and date_col:
-    df_filtered.set_index(date_col, inplace=True)
-    if agg_mode == "Monthly Average":
-        df_filtered = df_filtered.resample("M").mean().reset_index()
-    elif agg_mode == "Yearly Average":
-        df_filtered = df_filtered.resample("Y").mean().reset_index()
-
-# -----------------------------------------------------
-# KPI CARDS
-# -----------------------------------------------------
-st.subheader("Key Metrics")
-
-col1, col2, col3, col4 = st.columns(4)
-
-if not df_filtered.empty:
-    col1.metric("Minimum", f"{df_filtered[selected_param].min():.2f}")
-    col2.metric("Maximum", f"{df_filtered[selected_param].max():.2f}")
-    col3.metric("Mean", f"{df_filtered[selected_param].mean():.2f}")
-
-    # Trend calculation
-    try:
-        first_val = df_filtered[selected_param].iloc[0]
-        last_val = df_filtered[selected_param].iloc[-1]
-        trend = ((last_val - first_val) / first_val) * 100 if first_val != 0 else 0
-        col4.metric("Trend (%)", f"{trend:.2f}%")
-    except:
-        col4.metric("Trend (%)", "N/A")
-
-else:
-    st.warning("No data after applying filters.")
-    st.stop()
-
-# -----------------------------------------------------
-# MAIN VISUALIZATIONS
-# -----------------------------------------------------
-st.subheader("Visualizations")
-
-# 1. Time-Series Plot
-if date_col:
-    fig1 = px.line(
-        df_filtered,
-        x=date_col,
-        y=selected_param,
-        color="country" if "country" in df_filtered.columns else None,
-        title=f"{selected_param} Over Time ({agg_mode})"
-    )
-    st.plotly_chart(fig1, use_container_width=True)
-
-# 2. Box Plot (Distribution)
-fig2 = px.box(
-    df_filtered,
-    y=selected_param,
-    color="country" if "country" in df_filtered.columns else None,
-    title=f"Distribution of {selected_param}"
+# =========================================================
+# SIDEBAR – NAVIGATION
+# =========================================================
+st.sidebar.title("🌍 ClimateScope")
+page = st.sidebar.radio(
+    "Navigation",
+    [
+        "Executive Dashboard",
+        "Statistical Analysis",
+        "Climate Trends",
+        "Extreme Events",
+        "Help & User Guide"
+    ]
 )
-st.plotly_chart(fig2, use_container_width=True)
 
-# 3. Choropleth Map (if country available)
-if "country" in df_filtered.columns:
-    try:
-        df_map = df_filtered.groupby("country")[selected_param].mean().reset_index()
-        fig3 = px.choropleth(
-            df_map,
-            locations="country",
-            locationmode="country names",
-            color=selected_param,
-            title=f"World Map — Average {selected_param}"
-        )
-        st.plotly_chart(fig3, use_container_width=True)
-    except:
-        st.info("Map visualization skipped (country names might not match standard names).")
+# =========================================================
+# SIDEBAR – GLOBAL FILTERS
+# =========================================================
+st.sidebar.header("Global Filters")
 
-# 4. Monthly Heatmap (requires date)
-if date_col:
-    df_heat = df_filtered.copy()
-    df_heat["Month"] = df_heat[date_col].dt.month
-    df_heat["Year"] = df_heat[date_col].dt.year
+# Country filter
+countries = sorted(df["country"].unique())
+selected_countries = st.sidebar.multiselect(
+    "Select Countries",
+    countries,
+    default=countries[:5]
+)
 
-    pivot = df_heat.pivot_table(
-        values=selected_param,
-        index="Year",
-        columns="Month",
-        aggfunc="mean"
+# --- DATE FILTER (SAFE VERSION) ---
+min_date = df["last_updated"].min().date()
+max_date = df["last_updated"].max().date()
+
+
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    value=(min_date, max_date),
+    min_value=min_date,
+    max_value=max_date
+)
+
+# Convert back to datetime
+start_date = pd.to_datetime(date_range[0])
+end_date = pd.to_datetime(date_range[1])
+
+
+# Metric selector
+metric = st.sidebar.selectbox(
+    "Select Metric",
+    [
+        "temperature_celsius",
+        "humidity",
+        "precip_mm",
+        "wind_kph"
+    ]
+)
+
+# Time aggregation
+aggregation = st.sidebar.selectbox(
+    "Time Aggregation",
+    ["Daily", "Monthly", "Seasonal"]
+)
+
+# Normalization
+normalize = st.sidebar.checkbox("Normalize Metric")
+
+# Extreme threshold
+threshold = st.sidebar.number_input(
+    "Extreme Event Threshold",
+    value=35.0
+)
+
+# =========================================================
+# DATA FILTERING
+# =========================================================
+filtered_df = df[
+    (df["country"].isin(selected_countries)) &
+    (df["last_updated"] >= start_date) &
+    (df["last_updated"] <= end_date)
+
+]
+
+# =========================================================
+# AGGREGATION LOGIC
+# =========================================================
+if aggregation == "Monthly":
+    filtered_df["month"] = filtered_df["last_updated"].dt.to_period("M").astype(str)
+    agg_df = filtered_df.groupby(["country", "month"])[metric].mean().reset_index()
+    x_axis = "month"
+
+elif aggregation == "Seasonal":
+    filtered_df["season"] = filtered_df["last_updated"].dt.month % 12 // 3 + 1
+    agg_df = filtered_df.groupby(["country", "season"])[metric].mean().reset_index()
+    x_axis = "season"
+
+else:
+    agg_df = filtered_df.copy()
+    x_axis = "last_updated"
+
+# Normalization
+if normalize:
+    agg_df[metric] = (
+        agg_df[metric] - agg_df[metric].mean()
+    ) / agg_df[metric].std()
+
+# =========================================================
+# EXECUTIVE DASHBOARD
+# =========================================================
+if page == "Executive Dashboard":
+
+    st.title("📊 Executive Climate Overview")
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Global Mean Temp (°C)", round(filtered_df["temperature_celsius"].mean(), 2))
+    col2.metric("Avg Humidity (%)", round(filtered_df["humidity"].mean(), 2))
+    col3.metric("Total Records", len(filtered_df))
+
+    st.subheader("🌍 Global Temperature Map")
+
+    map_df = (
+        filtered_df.groupby("country")["temperature_celsius"]
+        .mean().reset_index()
     )
 
-    fig4 = px.imshow(
-        pivot,
-        labels=dict(color=selected_param),
-        aspect="auto",
-        title="Monthly Heatmap"
+    fig_map = px.choropleth(
+        map_df,
+        locations="country",
+        locationmode="country names",
+        color="temperature_celsius",
+        hover_name="country",
+        title="Average Temperature by Country"
     )
-    st.plotly_chart(fig4, use_container_width=True)
+    st.plotly_chart(fig_map, use_container_width=True)
 
+    st.subheader("📈 Climate Trend Snapshot")
 
-# -----------------------------------------------------
-# END OF APP
-# -----------------------------------------------------
-st.success("Dashboard updated successfully with all filters and visualizations.")
+    fig_line = px.line(
+        agg_df,
+        x=x_axis,
+        y=metric,
+        color="country",
+        title="Metric Trend"
+    )
+    st.plotly_chart(fig_line, use_container_width=True)
+
+# =========================================================
+# STATISTICAL ANALYSIS
+# =========================================================
+elif page == "Statistical Analysis":
+
+    st.title("📉 Statistical Analysis")
+
+    st.subheader("Correlation Heatmap")
+    corr = filtered_df[
+        ["temperature_celsius", "humidity", "precip_mm", "wind_kph"]
+    ].corr()
+
+    fig_corr = px.imshow(corr, text_auto=True)
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    st.subheader("Metric Distribution")
+
+    fig_hist = px.histogram(
+        filtered_df,
+        x=metric,
+        color="country",
+        marginal="box"
+    )
+    st.plotly_chart(fig_hist, use_container_width=True)
+
+    st.subheader("Descriptive Statistics")
+    st.dataframe(filtered_df.describe())
+
+# =========================================================
+# CLIMATE TRENDS
+# =========================================================
+elif page == "Climate Trends":
+
+    st.title("📈 Climate Trends Analysis")
+
+    st.subheader("Line & Area Charts")
+    fig_area = px.area(
+        agg_df,
+        x=x_axis,
+        y=metric,
+        color="country"
+    )
+    st.plotly_chart(fig_area, use_container_width=True)
+
+    st.subheader("Violin Plot")
+    fig_violin = px.violin(
+        filtered_df,
+        y=metric,
+        x="country",
+        box=True
+    )
+    st.plotly_chart(fig_violin, use_container_width=True)
+
+    st.subheader("Box Plot")
+    fig_box = px.box(
+        filtered_df,
+        x="country",
+        y=metric
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
+
+# =========================================================
+# EXTREME EVENTS
+# =========================================================
+elif page == "Extreme Events":
+
+    st.title("🔥 Extreme Events Analysis")
+
+    extreme_df = filtered_df[filtered_df[metric] >= threshold]
+
+    st.subheader("Top 5 Extreme Events")
+    st.dataframe(
+        extreme_df.sort_values(metric, ascending=False)
+        .head(5)[["country", "last_updated", metric]]
+    )
+
+    st.subheader("Extreme Events Frequency")
+    extreme_df["month"] = extreme_df["last_updated"].dt.to_period("M").astype(str)
+
+    freq_df = extreme_df.groupby("month").size().reset_index(name="count")
+
+    fig_freq = px.bar(freq_df, x="month", y="count")
+    st.plotly_chart(fig_freq, use_container_width=True)
+
+# =========================================================
+# HELP SECTION
+# =========================================================
+else:
+
+    st.title("ℹ️ Help & User Guide")
+
+    st.markdown("""
+    **ClimateScope Dashboard Features**
+
+    • Multi-country and date filtering  
+    • Interactive charts with zoom & hover  
+    • Extreme weather detection  
+    • Statistical and seasonal analysis  
+    • Downloadable Plotly charts  
+
+    **Usage Tips**
+    - Use sidebar to control filters
+    - Hover over charts for details
+    - Use Plotly toolbar to export PNG
+    """)
+
+# =========================================================
+# FOOTER
+# =========================================================
+st.markdown("---")
+st.caption("ClimateScope  |  Analysis of current climate data trends and extreme events.")
