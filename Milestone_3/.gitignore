@@ -1,0 +1,73 @@
+# ---------------------------
+# Python
+# ---------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pdb
+
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore output cells backup files
+*.ipynb_save
+
+# ---------------------------
+# VS Code
+# ---------------------------
+.vscode/
+*.code-workspace
+
+# ---------------------------
+# Data Files
+# ---------------------------
+# Raw or confidential data
+*.csv
+*.xlsx
+*.xls
+*.json
+*.parquet
+*.db
+
+# If you want to keep cleaned data tracked, REMOVE specific filenames later.
+# Example:
+# !Milestone_2/data/cleaned_weather_data.csv
+
+# ---------------------------
+# Logs
+# ---------------------------
+*.log
+
+# ---------------------------
+# Operating System Files
+# ---------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+._*
+
+# Linux
+*.swp
+*.swo
+
+# ---------------------------
+# Git
+# ---------------------------
+# Exclude personal branches, local test folders
+temp/
+backup/
+scratch/
+notes/
+EDA/
+

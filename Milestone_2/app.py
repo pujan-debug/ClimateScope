@@ -45,7 +45,7 @@ fig_temp = px.bar(
     labels={"temperature_celsius": "Temperature (°C)"},
     title="Temperature by Country",
 )
-st.plotly_chart(fig_temp, use_container_width=True)
+st.plotly_chart(fig_temp, use_container_width='stretch')
 
 # Temperature vs Humidity
 st.subheader("🌡️ Temperature vs 💧 Humidity")
@@ -58,7 +58,7 @@ fig_scatter = px.scatter(
     hover_name="country",
     title="Temperature vs Humidity",
 )
-st.plotly_chart(fig_scatter, use_container_width=True)
+st.plotly_chart(fig_scatter, use_container_width='stretch')
 
 # Wind Speed Distribution
 st.subheader("🍃 Wind Speed Distribution")
@@ -68,7 +68,7 @@ fig_wind = px.histogram(
     nbins=20,
     title="Wind Speed Distribution",
 )
-st.plotly_chart(fig_wind, use_container_width=True)
+st.plotly_chart(fig_wind, use_container_width='stretch')
 
 st.subheader("🗺️ Global Temperature Choropleth Map")
 
@@ -95,6 +95,6 @@ fig_choro = px.choropleth(
     labels={"temperature_celsius": "Avg Temperature (°C)"}
 )
 
-st.plotly_chart(fig_choro, use_container_width=True)
+st.plotly_chart(fig_choro, use_container_width='stretch')
 
 
