@@ -68,7 +68,7 @@ countries = sorted(df["country"].unique())
 selected_countries = st.sidebar.multiselect(
     "Select Countries",
     countries,
-    default=countries[:5]
+    default=countries
 )
 
 # --- DATE FILTER  ---
@@ -150,14 +150,13 @@ if aggregation == "Monthly":
 
     agg_df = (
         filtered_df
-        .set_index("last_updated")
-        .groupby("country")[metric]
-        .resample("MS")   # Month Start
+        .groupby(["country", pd.Grouper(key="last_updated", freq="MS")])[metric]
         .mean()
         .reset_index()
     )
 
     x_axis = "last_updated"
+
 
 
 elif aggregation == "Seasonal":
