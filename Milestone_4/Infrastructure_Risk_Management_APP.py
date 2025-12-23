@@ -337,6 +337,126 @@ elif page == "Extreme Events":
 
     fig_freq = px.bar(freq_df, x="month", y="count")
     st.plotly_chart(fig_freq, use_container_width=True)
+    # --------------------------------------------------
+# INFRASTRUCTURE RISK MANAGEMENT
+# --------------------------------------------------
+
+elif page == "Infrastructure Risk Management":
+
+    st.title("🏗 Infrastructure Risk Management")
+
+    st.markdown("""
+    This section translates climate conditions into **infrastructure risk insights**
+    to support planning, resilience, and mitigation strategies.
+    """)
+
+    # KPI Metrics
+    col1, col2, col3 = st.columns(3)
+
+    col1.metric(
+        "Average Risk Index",
+        round(filtered_df["risk_index"].mean(), 2)
+    )
+
+    col2.metric(
+        "High Risk Events",
+        (filtered_df["risk_level"] == "High Risk").sum()
+    )
+
+    col3.metric(
+        "Countries Selected",
+        len(selected_countries)
+    )
+
+    # --------------------------------------------------
+    # RISK MAP (CHANGES BY COUNTRY SELECTION)
+    # --------------------------------------------------
+
+    st.subheader("🌍 Infrastructure Risk by Country")
+
+    risk_map_df = (
+        filtered_df
+        .groupby("country")["risk_index"]
+        .mean()
+        .reset_index()
+    )
+
+    fig_risk_map = px.choropleth(
+        risk_map_df,
+        locations="country",
+        locationmode="country names",
+        color="risk_index",
+        color_continuous_scale="Reds",
+        title="Average Infrastructure Risk Index"
+    )
+
+    st.plotly_chart(fig_risk_map, use_container_width=True)
+
+    # --------------------------------------------------
+    # RISK TREND (SINGLE OR MULTI-COUNTRY)
+    # --------------------------------------------------
+
+    st.subheader("📈 Infrastructure Risk Trend")
+
+    trend_df = (
+        filtered_df
+        .set_index("last_updated")
+        .groupby("country")["risk_index"]
+        .resample("MS")
+        .mean()
+        .reset_index()
+    )
+
+    fig_trend = px.line(
+        trend_df,
+        x="last_updated",
+        y="risk_index",
+        color="country",
+        title="Monthly Infrastructure Risk Trend"
+    )
+
+    st.plotly_chart(fig_trend, use_container_width=True)
+
+    # --------------------------------------------------
+    # HIGH RISK EVENTS TABLE
+    # --------------------------------------------------
+
+    st.subheader("🔥 High Risk Infrastructure Events")
+
+    high_risk_df = filtered_df[filtered_df["risk_level"] == "High Risk"]
+
+    if high_risk_df.empty:
+        st.info("No high-risk events detected for the selected filters.")
+    else:
+        st.dataframe(
+            high_risk_df.sort_values("risk_index", ascending=False)
+            .head(10)[
+                ["country", "last_updated", "risk_index", "risk_level"]
+            ]
+        )
+
+    # --------------------------------------------------
+    # RISK DISTRIBUTION
+    # --------------------------------------------------
+
+    st.subheader("📊 Risk Level Distribution")
+
+    risk_dist = (
+        filtered_df
+        .groupby("risk_level")
+        .size()
+        .reset_index(name="count")
+    )
+
+    fig_pie = px.pie(
+        risk_dist,
+        names="risk_level",
+        values="count",
+        title="Infrastructure Risk Distribution"
+    )
+
+    st.plotly_chart(fig_pie, use_container_width=True)
+
 
 # HELP SECTION
 
