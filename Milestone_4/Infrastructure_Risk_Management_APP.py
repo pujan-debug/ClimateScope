@@ -124,6 +124,27 @@ filtered_df = df[
 
 ]
 
+# --------------------------------------------------
+# INFRASTRUCTURE RISK INDEX CALCULATION
+# --------------------------------------------------
+
+filtered_df["risk_index"] = (
+    filtered_df["temperature_celsius"] * 0.4 +
+    filtered_df["precip_mm"] * 0.3 +
+    filtered_df["wind_kph"] * 0.3
+)
+
+def classify_risk(score):
+    if score < 20:
+        return "Low Risk"
+    elif score < 35:
+        return "Moderate Risk"
+    else:
+        return "High Risk"
+
+filtered_df["risk_level"] = filtered_df["risk_index"].apply(classify_risk)
+
+
 filtered_df["last_updated"] = pd.to_datetime(filtered_df["last_updated"])
 if aggregation == "Monthly":
 
@@ -178,6 +199,7 @@ else:  # Daily (cleaned)
     )
 
     x_axis = "last_updated"
+
 # Normalization
 if normalize:
     agg_df[metric] = (
