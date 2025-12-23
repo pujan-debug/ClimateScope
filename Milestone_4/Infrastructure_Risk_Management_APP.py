@@ -68,8 +68,12 @@ countries = sorted(df["country"].unique())
 selected_countries = st.sidebar.multiselect(
     "Select Countries",
     countries,
-    default=countries
+    
 )
+
+if len(selected_countries) == 0:
+    selected_countries = countries
+
 
 # --- DATE FILTER  ---
 min_date = df["last_updated"].min().date()
@@ -121,18 +125,17 @@ filtered_df = df[
     (df["country"].isin(selected_countries)) &
     (df["last_updated"] >= start_date) &
     (df["last_updated"] <= end_date)
-
-]
-
+].copy()
 
 # INFRASTRUCTURE RISK INDEX CALCULATION
 
 
-filtered_df["risk_index"] = (
+filtered_df["infrastructure_risk_score"] = (
     filtered_df["temperature_celsius"] * 0.4 +
-    filtered_df["precip_mm"] * 0.3 +
-    filtered_df["wind_kph"] * 0.3
+    filtered_df["precip_mm"] * 0.35 +
+    filtered_df["wind_kph"] * 0.25
 )
+filtered_df["risk_index"] = filtered_df["infrastructure_risk_score"]
 
 def classify_risk(score):
     if score < 10:
