@@ -124,9 +124,9 @@ filtered_df = df[
 
 ]
 
-# --------------------------------------------------
+
 # INFRASTRUCTURE RISK INDEX CALCULATION
-# --------------------------------------------------
+
 
 filtered_df["risk_index"] = (
     filtered_df["temperature_celsius"] * 0.4 +
@@ -135,9 +135,9 @@ filtered_df["risk_index"] = (
 )
 
 def classify_risk(score):
-    if score < 20:
+    if score < 10:
         return "Low Risk"
-    elif score < 35:
+    elif score < 12:
         return "Moderate Risk"
     else:
         return "High Risk"
@@ -337,9 +337,9 @@ elif page == "Extreme Events":
 
     fig_freq = px.bar(freq_df, x="month", y="count")
     st.plotly_chart(fig_freq, use_container_width=True)
-    # --------------------------------------------------
+  
 # INFRASTRUCTURE RISK MANAGEMENT
-# --------------------------------------------------
+
 
 elif page == "Infrastructure Risk Management":
 
@@ -368,9 +368,8 @@ elif page == "Infrastructure Risk Management":
         len(selected_countries)
     )
 
-    # --------------------------------------------------
     # RISK MAP (CHANGES BY COUNTRY SELECTION)
-    # --------------------------------------------------
+  
 
     st.subheader("🌍 Infrastructure Risk by Country")
 
@@ -392,9 +391,8 @@ elif page == "Infrastructure Risk Management":
 
     st.plotly_chart(fig_risk_map, use_container_width=True)
 
-    # --------------------------------------------------
     # RISK TREND (SINGLE OR MULTI-COUNTRY)
-    # --------------------------------------------------
+  
 
     st.subheader("📈 Infrastructure Risk Trend")
 
@@ -417,9 +415,9 @@ elif page == "Infrastructure Risk Management":
 
     st.plotly_chart(fig_trend, use_container_width=True)
 
-    # --------------------------------------------------
+    
     # HIGH RISK EVENTS TABLE
-    # --------------------------------------------------
+   
 
     st.subheader("🔥 High Risk Infrastructure Events")
 
@@ -435,9 +433,9 @@ elif page == "Infrastructure Risk Management":
             ]
         )
 
-    # --------------------------------------------------
+  
     # RISK DISTRIBUTION
-    # --------------------------------------------------
+  
 
     st.subheader("📊 Risk Level Distribution")
 
