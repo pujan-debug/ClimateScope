@@ -53,6 +53,7 @@ page = st.sidebar.radio(
         "Statistical Analysis",
         "Climate Trends",
         "Extreme Events",
+        "Infrastructure Risk Management",
         "Help & User Guide"
     ]
 )
